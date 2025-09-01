@@ -1,103 +1,386 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useRef } from 'react';
+import toast from 'react-hot-toast';
+import { saveAs } from 'file-saver';
+
+interface LorebookEntry {
+  uid: number;
+  key: string[];
+  keysecondary: string[];
+  comment: string;
+  content: string;
+  constant: boolean;
+  selective: boolean;
+  order: number;
+  position: number;
+  disable: boolean;
+  displayIndex: number;
+  addMemo: boolean;
+  group: string;
+  groupOverride: boolean;
+  groupWeight: number;
+  sticky: number;
+  cooldown: number;
+  delay: number;
+  probability: number;
+  depth: number;
+  useProbability: boolean;
+  role: null;
+  vectorized: boolean;
+  excludeRecursion: boolean;
+  preventRecursion: boolean;
+  delayUntilRecursion: boolean;
+  scanDepth: null;
+  caseSensitive: null;
+  matchWholeWords: null;
+  useGroupScoring: null;
+  automationId: string;
+}
+
+interface Lorebook {
+  entries: { [key: string]: LorebookEntry };
+}
+
+export default function LorebookEditor() {
+  const [entries, setEntries] = useState<LorebookEntry[]>([
+    {
+      uid: 0,
+      key: [],
+      keysecondary: [],
+      comment: '',
+      content: '',
+      constant: false,
+      selective: true,
+      order: 100,
+      position: 0,
+      disable: false,
+      displayIndex: 0,
+      addMemo: true,
+      group: '',
+      groupOverride: false,
+      groupWeight: 100,
+      sticky: 0,
+      cooldown: 0,
+      delay: 0,
+      probability: 0,
+      depth: 4,
+      useProbability: true,
+      role: null,
+      vectorized: false,
+      excludeRecursion: false,
+      preventRecursion: false,
+      delayUntilRecursion: false,
+      scanDepth: null,
+      caseSensitive: null,
+      matchWholeWords: null,
+      useGroupScoring: null,
+      automationId: '',
+    },
+  ]);
+
+  const [currentKeyInput, setCurrentKeyInput] = useState<{
+    [key: number]: string;
+  }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addEntry = () => {
+    const newEntry: LorebookEntry = {
+      uid: entries.length,
+      key: [],
+      keysecondary: [],
+      comment: '',
+      content: '',
+      constant: false,
+      selective: true,
+      order: 100,
+      position: 0,
+      disable: false,
+      displayIndex: entries.length,
+      addMemo: true,
+      group: '',
+      groupOverride: false,
+      groupWeight: 100,
+      sticky: 0,
+      cooldown: 0,
+      delay: 0,
+      probability: 0,
+      depth: 4,
+      useProbability: true,
+      role: null,
+      vectorized: false,
+      excludeRecursion: false,
+      preventRecursion: false,
+      delayUntilRecursion: false,
+      scanDepth: null,
+      caseSensitive: null,
+      matchWholeWords: null,
+      useGroupScoring: null,
+      automationId: '',
+    };
+    setEntries([...entries, newEntry]);
+    toast.success('new entry added');
+  };
+
+  const updateEntry = (
+    index: number,
+    field: keyof LorebookEntry,
+    value: any
+  ) => {
+    const newEntries = [...entries];
+    newEntries[index] = { ...newEntries[index], [field]: value };
+    setEntries(newEntries);
+  };
+
+  const deleteEntry = (index: number) => {
+    if (entries.length === 1) {
+      toast.error('you need at least one entry');
+      return;
+    }
+
+    const newEntries = entries.filter((_, i) => i !== index);
+    newEntries.forEach((entry, i) => {
+      entry.uid = i;
+      entry.displayIndex = i;
+    });
+    setEntries(newEntries);
+    toast.success('entry deleted');
+  };
+
+  const addKeyToEntry = (index: number) => {
+    const keyToAdd = currentKeyInput[index]?.trim();
+    if (!keyToAdd) return;
+
+    const newEntries = [...entries];
+    if (!newEntries[index].key.includes(keyToAdd)) {
+      newEntries[index].key.push(keyToAdd);
+      setEntries(newEntries);
+      setCurrentKeyInput({ ...currentKeyInput, [index]: '' });
+    }
+  };
+
+  const removeKeyFromEntry = (entryIndex: number, keyIndex: number) => {
+    const newEntries = [...entries];
+    newEntries[entryIndex].key.splice(keyIndex, 1);
+    setEntries(newEntries);
+  };
+
+  const generateLorebook = (): Lorebook => {
+    const lorebookEntries: { [key: string]: LorebookEntry } = {};
+    entries.forEach((entry, index) => {
+      lorebookEntries[index.toString()] = entry;
+    });
+    return { entries: lorebookEntries };
+  };
+
+  const exportLorebook = () => {
+    const lorebook = generateLorebook();
+    const blob = new Blob([JSON.stringify(lorebook, null, 2)], {
+      type: 'application/json',
+    });
+    saveAs(blob, 'lorebook.json');
+    toast.success('lorebook exported!');
+  };
+
+  const importLorebook = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const lorebook = JSON.parse(content) as Lorebook;
+
+        if (!lorebook.entries) {
+          throw new Error('invalid lorebook format');
+        }
+
+        const importedEntries: LorebookEntry[] = [];
+        Object.keys(lorebook.entries).forEach((key, index) => {
+          const entry = lorebook.entries[key];
+          importedEntries.push({
+            ...entry,
+            uid: index,
+            displayIndex: index,
+          });
+        });
+
+        setEntries(importedEntries);
+        toast.success('lorebook imported successfully!');
+      } catch (error) {
+        toast.error('failed to import lorebook. please check the file format.');
+      }
+    };
+    reader.readAsText(file);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div className='min-h-screen bg-base-100 py-8 px-4'>
+      <div className='max-w-7xl mx-auto'>
+        {/* header - import/export */}
+        <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8'>
+          <div className='flex gap-2'>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className='btn btn-sm btn-ghost flex items-center gap-2'
+            >
+              import
+            </button>
+            <button
+              onClick={exportLorebook}
+              className='btn btn-sm btn-primary flex items-center gap-2'
+              disabled={entries.every(
+                (e) => !e.comment && !e.content && e.key.length === 0
+              )}
+            >
+              export
+            </button>
+            <input
+              ref={fileInputRef}
+              type='file'
+              accept='.json'
+              onChange={importLorebook}
+              className='hidden'
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
+          {/* left side - editor */}
+          <div className='space-y-4'>
+            <div className='max-h-[75vh] overflow-y-auto space-y-4 pr-2'>
+              {entries.map((entry, index) => (
+                <div
+                  key={index}
+                  className='card bg-base-200 border border-base-300'
+                >
+                  <div className='card-body p-4'>
+                    <div className='flex justify-between items-start mb-4'>
+                      <h3 className='text-lg font-semibold text-base-content'>
+                        entry {index + 1}
+                      </h3>
+                      <button
+                        onClick={() => deleteEntry(index)}
+                        className='btn btn-ghost btn-xs text-error'
+                        aria-label='delete entry'
+                      >
+                        <span className='text-sm'>delete entry</span>
+                      </button>
+                    </div>
+
+                    <div className='form-control mb-3'>
+                      <label className='label py-1'>
+                        <span className='label-text text-xs'>
+                          entry title (comment)
+                        </span>
+                      </label>
+                      <input
+                        type='text'
+                        placeholder='entry title or name'
+                        className='input input-sm input-bordered w-full'
+                        value={entry.comment}
+                        onChange={(e) =>
+                          updateEntry(index, 'comment', e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div className='form-control mb-3'>
+                      <label className='label py-1'>
+                        <span className='label-text text-xs'>keys</span>
+                      </label>
+                      <div className='flex gap-2 mb-2 flex-wrap'>
+                        {entry.key.map((key, keyIndex) => (
+                          <div
+                            key={keyIndex}
+                            className='badge badge-primary gap-1 py-3'
+                          >
+                            {key}
+                            <button
+                              onClick={() =>
+                                removeKeyFromEntry(index, keyIndex)
+                              }
+                              className='ml-1'
+                            ></button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className='flex gap-2'>
+                        <input
+                          type='text'
+                          placeholder='add a key or tag'
+                          className='input input-sm input-bordered flex-1'
+                          value={currentKeyInput[index] || ''}
+                          onChange={(e) =>
+                            setCurrentKeyInput({
+                              ...currentKeyInput,
+                              [index]: e.target.value,
+                            })
+                          }
+                          onKeyUp={(e) => {
+                            if (e.key === 'Enter') {
+                              addKeyToEntry(index);
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => addKeyToEntry(index)}
+                          className='btn btn-sm btn-primary'
+                        >
+                          add
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className='form-control'>
+                      <label className='label py-1'>
+                        <span className='label-text text-xs'>content</span>
+                      </label>
+                      <textarea
+                        placeholder='describe this entry in detail...'
+                        className='textarea textarea-bordered w-full resize-none'
+                        rows={4}
+                        value={entry.content}
+                        onChange={(e) =>
+                          updateEntry(index, 'content', e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={addEntry}
+              className='btn btn-outline btn-primary w-full flex items-center gap-2'
+            >
+              add new entry
+            </button>
+          </div>
+
+          {/* right side - JSON preview */}
+          <div className='hidden lg:block'>
+            <div className='card sticky top-8'>
+              <div className='card-body p-0'>
+                <h3 className='text-lg font-semibold text-base-content mb-3'>
+                  JSON preview
+                </h3>
+                <div className='mockup-code max-h-[75vh] overflow-auto'>
+                  <pre className='text-xs'>
+                    <code>{JSON.stringify(generateLorebook(), null, 2)}</code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
