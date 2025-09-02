@@ -4,6 +4,8 @@ import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { saveAs } from 'file-saver';
 
+import ThemeToggle from '@/components/ThemeToggle';
+
 interface LorebookEntry {
   uid: number;
   key: string[];
@@ -83,6 +85,10 @@ export default function LorebookEditor() {
     [key: number]: string;
   }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [textareaRows, setTextareaRows] = useState<{ [key: number]: number }>(
+    {}
+  );
 
   const addEntry = () => {
     const newEntry: LorebookEntry = {
@@ -223,6 +229,7 @@ export default function LorebookEditor() {
     <div className='min-h-screen bg-base-100 py-8 px-4'>
       <div className='max-w-7xl mx-auto'>
         {/* header - import/export */}
+        {/* header - import/export */}
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8'>
           <div className='flex gap-2'>
             <button
@@ -248,6 +255,7 @@ export default function LorebookEditor() {
               className='hidden'
             />
           </div>
+          <ThemeToggle />
         </div>
 
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
@@ -343,7 +351,7 @@ export default function LorebookEditor() {
                       </label>
                       <textarea
                         placeholder='describe this entry in detail...'
-                        className='textarea textarea-bordered w-full resize-none'
+                        className='textarea textarea-bordered w-full resize-y min-h-[100px] max-h-[500px]'
                         rows={4}
                         value={entry.content}
                         onChange={(e) =>
